@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% block title %}{{ v.name }} · YT-CUAN{% endblock %}
+{% block head %}
+<style>
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin:-4px 0 18px; }
+  .chips a { padding:5px 12px; border:1px solid var(--line); border-radius:99px; text-decoration:none; color:var(--ink); background:#fff; }
+  .chips a[aria-current] { background:var(--pine); border-color:var(--pine); color:#fff; }
+  .checks { list-style:none; padding:0; margin:0 0 10px; display:grid; gap:4px; }
+  fieldset { border:0; padding:0; margin:0; min-width:0; }
+  fieldset[disabled] { opacity:.6; }
+</style>
+{% endblock %}
+{% block body %}
+{% set off = not v.online %}
+{% set here = '/v/' ~ v.id ~ ('?c=' ~ ch.id if ch else '') %}
+{% macro do(action, label, cls='', confirm='', fields={}) -%}
+<form class="inline" method="post" action="/v/{{ v.id }}/do/{{ action }}" {% if confirm %}onsubmit="return confirm({{ confirm|tojson|forceescape }})"{% endif %}>
+  <input type="hidden" name="_back" value="{{ here }}">
+  {% for k, val in fields.items() %}<input type="hidden" name="{{ k }}" value="{{ val }}">{% endfor %}
+  <button class="{{ cls }}" {% if off %}disabled{% endif %}>{{ label }}</button>
+</form>
+{%- endmacro %}
+
+<div class="head">
+  <h1>{{ v.name }}</h1>
+  {% if off %}<span class="offair">Offline · terakhir {{ v.last_seen|ago }}</span>
+  {% elif broadcasts|selectattr('state','equalto','live')|list %}<span class="onair">On air · {{ broadcasts|selectattr('state','equalto','live')|list|length }} live</span>
+  {% else %}<span class="offair">Online · tidak ada live</span>{% endif %}
+</div>
+<p class="lead">
+  {% if off %}Data di bawah adalah laporan terakhir. Tombol nonaktif sampai server tersambung lagi; live yang sudah jalan tetap jalan.
+  {% else %}Diperbarui saat halaman dimuat. {% endif %}
+  {% if st.system %}CPU {{ st.system.cpu|round|int }}% · disk {{ st.system.disk|round|int }}% · upload {{ st.system.up_mbps }} Mbps ·
+  kuota {{ st.quota.used }}/{{ st.quota.limit }}{% endif %}
+  {% if v.version %}· versi {{ v.version }}{% endif %}
+</p>
+
+{% if not st %}
+<section class="panel"><p>Belum ada laporan dari server ini. Pastikan installer selesai, lalu cek <code>yt-cuan status</code> di VPS.</p></section>
+{% else %}
+
+{# ---------- setup: Google access + channel ---------- #}
+{% if not st.oauth.ready or not channels %}
+<section class="panel" style="border-color:var(--pine)">
+  <h2>Siapkan server ini</h2>
+  <fieldset {% if off %}disabled{% endif %}>
+  <ul class="checks">
+    <li>{{ '✓' if st.oauth.ready else '○' }} <b>Akses Google</b> (client_secrets.json){% if st.oauth.ready %}: tipe {{ st.oauth.client_type }}{% endif %}</li>
+    <li>{{ '✓' if channels else '○' }} <b>Channel YouTube</b> terhubung</li>
+  </ul>
+  {% if not st.oauth.ready %}
+  <form method="post" action="/v/{{ v.id }}/do/oauth.client_secrets" enctype="multipart/form-data" class="row">
+    <input type="hidden" name="_back" value="{{ here }}">
+    <input type="file" name="file" accept=".json" required aria-label="client_secrets.json">
+    <button class="primary">Unggah client_secrets.json</button>
+  </form>
+  <p class="mute">Belum punya? Buat di Google Cloud: project baru → aktifkan YouTube Data API v3 → OAuth consent screen (External,
+    tambahkan email Anda di Test users) → Clients → Create client → Download JSON.</p>
+  {% else %}
+  <p>Login channel YouTube dari hub hadir di pembaruan berikutnya. Sementara ini, buka dashboard lokal server lewat SSH tunnel:
+    <code>ssh -L 8000:localhost:8000 root@&lt;ip-server&gt;</code> lalu buka <code>http://localhost:8000/setup</code>.</p>
+  {% endif %}
+  </fieldset>
+</section>
+{% endif %}
+
+{% if channels|length > 1 %}
+<nav class="chips" aria-label="Channel">
+  {% for x in channels %}<a href="/v/{{ v.id }}?c={{ x.id }}" {% if ch and x.id == ch.id %}aria-current="true"{% endif %}>{{ x.title }}</a>{% endfor %}
+</nav>
+{% endif %}
+
+{% if ch %}
+<fieldset {% if off %}disabled{% endif %}>
+
+{% if not ch.token_ok %}<div class="flash bad">Login channel {{ ch.title }} kedaluwarsa atau dicabut. Login ulang dari dashboard lokal server.</div>{% endif %}
+
+<section class="panel">
+  <div class="head"><h2>Stream key · {{ ch.title }}</h2>{{ do('channel.sync', 'Sinkron dari YouTube', fields={'channel_id': ch.id}) }}</div>
+  <div class="tw"><table>
+    <tr><th>Key</th><th>Status</th><th>Sumber acak</th><th>Live</th><th>Aksi</th></tr>
+    {% for k in keys %}
+    <tr>
+      <td><b>{{ k.name }}</b><br><span class="mute">{{ k.key_masked }}</span></td>
+      <td><span class="{{ k.state }}">{{ k.state|st }}</span>{% if k.speed %} <span class="mute">{{ k.speed }}x</span>{% endif %}
+        {% if k.slots_paused %}<br><span class="warn">slot dijeda</span>{% endif %}
+        {% if k.last_error %}<br><small class="bad">{{ k.last_error[:200] }}</small>{% endif %}</td>
+      <td>
+        <form method="post" action="/v/{{ v.id }}/do/key.config" class="row">
+          <input type="hidden" name="_back" value="{{ here }}"><input type="hidden" name="key_id" value="{{ k.id }}">
+          <input type="number" name="n_video" value="{{ k.n_video }}" min="1" style="width:64px" aria-label="Jumlah video"> video
+          <input type="number" name="n_audio" value="{{ k.n_audio }}" min="1" style="width:64px" aria-label="Jumlah audio"> audio
+          <label class="row" style="margin:0"><input type="checkbox" name="locked" {% if k.locked %}checked{% endif %}> kunci pilihan</label>
+          <button>Simpan</button>
+        </form>
+      </td>
+      <td>{{ broadcasts|selectattr('key_id','equalto',k.id)|selectattr('state','in',['creating','live','ending'])|list|length }}</td>
+      <td class="row">
+        {% if k.desired == 'running' %}{{ do('key.stop', 'Stop', 'danger', 'Hentikan ' ~ k.name ~ '? Semua live di key ini akan diakhiri.', {'key_id': k.id}) }}
+        {% else %}{{ do('key.start', 'Start', 'primary', '', {'key_id': k.id}) }}{% endif %}
+        {% if k.slots_paused %}{{ do('key.resume_slots', 'Lanjutkan slot', '', '', {'key_id': k.id}) }}
+        {% else %}{{ do('key.pause_slots', 'Jeda slot', '', '', {'key_id': k.id}) }}{% endif %}
+        {{ do('key.reshuffle', 'Acak ulang', '', '', {'key_id': k.id}) }}
+        <a class="btn" href="/v/{{ v.id }}/log/{{ k.id }}" target="_blank" rel="noopener">Log</a>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="mute">Belum ada key. Buat stream key permanen di YouTube Studio (Create → Go live → Stream), lalu klik Sinkron.</td></tr>
+    {% endfor %}
+  </table></div>
+</section>
+
+<section class="panel">
+  <h2>Live (aktif + 24 jam terakhir)</h2>
+  <div class="tw"><table>
+    <tr><th>Judul</th><th>Key</th><th>Status</th><th>Mulai</th><th>Berakhir</th><th>Penonton</th><th></th></tr>
+    {% for b in broadcasts %}
+    <tr>
+      <td>{% if b.yt_id %}<a href="https://youtube.com/watch?v={{ b.yt_id }}" target="_blank" rel="noopener">{{ b.title }}</a>{% else %}{{ b.title or '-' }}{% endif %}
+        {% if b.error %}<br><small class="bad">{{ b.error[:200] }}</small>{% endif %}</td>
+      <td>{{ b.key_name }}</td>
+      <td class="{{ b.state }}">{{ b.state|st }}</td>
+      <td>{{ b.started|ts }}</td>
+      <td>{{ b.ends|ts if b.ends else ('tanpa batas' if b.state == 'live' else '-') }}</td>
+      <td>{{ b.viewers if b.viewers is not none else '-' }}</td>
+      <td>{% if b.state == 'live' %}{{ do('broadcast.end', 'Akhiri', 'danger', 'Akhiri live ini sekarang?', {'broadcast_id': b.id}) }}{% endif %}</td>
+    </tr>
+    {% else %}<tr><td colspan="7" class="mute">Belum ada live.</td></tr>{% endfor %}
+  </table></div>
+</section>
+
+<section class="panel" id="titles">
+  <h2>Judul <span class="pill">{{ titles_n }} tersisa</span></h2>
+  {% if detail %}
+  <form method="post" action="/v/{{ v.id }}/do/channel.titles.set">
+    <input type="hidden" name="_back" value="{{ here }}#titles"><input type="hidden" name="channel_id" value="{{ ch.id }}">
+    <textarea name="titles" rows="8" placeholder="Satu judul per baris (maks 100 karakter)">{{ detail.titles|join('\n') }}</textarea>
+    <div class="row"><button class="primary">Simpan judul</button></div>
+  </form>
+  {% else %}<p class="mute">Daftar judul tampil saat server online.</p>{% endif %}
+</section>
+
+{% set s = ch.settings %}
+<section class="panel" id="settings">
+  <h2>Pengaturan</h2>
+  <form method="post" action="/v/{{ v.id }}/do/channel.settings">
+    <input type="hidden" name="_back" value="{{ here }}#settings"><input type="hidden" name="channel_id" value="{{ ch.id }}">
+    <div class="grid">
+      <label>Durasi live (jam)<small>0 = tanpa akhir</small><input type="number" step="0.5" min="0" name="cycle_hours" value="{{ s.cycle_hours }}"></label>
+      <label>Live per key<small>Duplicate per Key</small><input type="number" min="1" max="10" name="slots_per_key" value="{{ s.slots_per_key }}"></label>
+      <label>Privacy<select name="privacy">{% for p in ['public','unlisted','private'] %}<option {% if s.privacy == p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select></label>
+      <label>Kategori ID<small>10 = Music</small><input name="category_id" value="{{ s.category_id }}"></label>
+      <label>Tag<small>pisahkan dengan koma</small><input name="tags" value="{{ s.tags }}"></label>
+      <label>Jitter sebelum live (detik)<span class="row"><input type="number" min="0" name="jitter_min" value="{{ s.jitter_min }}" style="width:80px">–<input type="number" min="0" name="jitter_max" value="{{ s.jitter_max }}" style="width:80px"></span></label>
+      <label>Resolusi video<select name="resolution">{% for r in [1080, 720] %}<option value="{{ r }}" {% if s.resolution|int == r %}selected{% endif %}>{{ r }}p</option>{% endfor %}</select></label>
+      <label>Bitrate<small>CBR jika live blank/buffering. Mengubah ini = encode ulang library.</small>
+        <select name="rate_mode"><option value="vbr" {% if s.rate_mode == 'vbr' %}selected{% endif %}>VBR</option><option value="cbr" {% if s.rate_mode == 'cbr' %}selected{% endif %}>CBR</option></select></label>
+      <div>
+        <label class="row"><input type="checkbox" name="change_title" {% if s.change_title %}checked{% endif %}> Ganti judul tiap siklus</label>
+        <label class="row"><input type="checkbox" name="delete_title" {% if s.delete_title %}checked{% endif %}> Hapus judul setelah dipakai</label>
+        <label class="row"><input type="checkbox" name="keep_original" {% if s.keep_original %}checked{% endif %}> Simpan file asli upload</label>
+      </div>
+      <div>
+        <label class="row"><input type="checkbox" name="filter_view" {% if s.filter_view %}checked{% endif %}> Filter View</label>
+        <small class="mute">Akhir siklus: ada penonton → lanjut; 0 penonton → live diganti baru. Berisiko kebijakan spam YouTube.</small>
+        <label>Minimal live (menit)<input type="number" min="10" name="fv_min_minutes" value="{{ s.fv_min_minutes }}"></label>
+        <label>Maks restart / key / hari<input type="number" min="0" name="fv_max_restarts" value="{{ s.fv_max_restarts }}"></label>
+      </div>
+    </div>
+    <label>Template deskripsi (spintax <code>{a|b|c}</code>, boleh bertingkat)
+      <textarea name="description_template" rows="8">{{ s.description_template }}</textarea></label>
+    {% if detail and detail.preview %}<details><summary>Contoh hasil</summary><pre>{{ detail.preview }}</pre></details>{% endif %}
+    <div class="row"><button class="primary">Simpan pengaturan</button></div>
+  </form>
+</section>
+
+<section class="panel" id="media">
+  <h2>Media</h2>
+  <p class="mute">Unggah dan impor dari link Google Drive hadir di pembaruan berikutnya. Sementara ini unggah lewat dashboard lokal server.</p>
+  <div class="tw"><table>
+    <tr><th>Jenis</th><th>File</th><th>Status</th><th></th></tr>
+    {% for m in media %}
+    <tr>
+      <td>{{ m.kind }}</td><td>{{ m.orig_name }}</td>
+      <td><span class="{{ m.status }}">{{ m.status|st }}</span>
+        {% if m.status == 'processing' %}<div class="bar"><i style="width:{{ m.progress|int }}%"></i></div>{% endif %}
+        {% if m.error %}<details><summary class="bad">error</summary><pre>{{ m.error }}</pre></details>{% endif %}</td>
+      <td class="row">
+        {% if m.status == 'failed' %}{{ do('media.retry', 'Ulangi', '', '', {'media_id': m.id}) }}{% endif %}
+        {{ do('media.delete', 'Hapus', 'danger', 'Hapus ' ~ m.orig_name ~ '?', {'media_id': m.id}) }}
+      </td>
+    </tr>
+    {% else %}<tr><td colspan="4" class="mute">Belum ada media.</td></tr>{% endfor %}
+  </table></div>
+</section>
+</fieldset>
+{% endif %}
+
+<section class="panel">
+  <details>
+    <summary><h2 style="display:inline">Catatan aktivitas</h2></summary>
+    <div class="tw" style="margin-top:12px"><table>
+      {% for e in st.events[:60] %}<tr><td class="mute" style="white-space:nowrap">{{ e.ts|ts }}</td><td class="{{ e.level }}">{{ e.level|st }}</td><td>{{ e.msg }}</td></tr>
+      {% else %}<tr><td class="mute">Kosong.</td></tr>{% endfor %}
+    </table></div>
+  </details>
+</section>
+{% endif %}
+
+<section class="panel">
+  <h2>Server</h2>
+  <form method="post" action="/v/{{ v.id }}/rename" class="row">
+    <input name="name" value="{{ v.name }}" aria-label="Nama server" maxlength="60"><button>Ganti nama</button>
+  </form>
+  <p class="mute">Hostname {{ v.hostname or '-' }}.</p>
+  <form method="post" action="/v/{{ v.id }}/remove" onsubmit="return confirm('Lepas server ini dari hub? Live di server tetap jalan, tapi tidak bisa dikontrol dari sini sampai dipasangkan lagi.')">
+    <button class="danger">Lepas dari hub</button>
+  </form>
+</section>
+{% endblock %}

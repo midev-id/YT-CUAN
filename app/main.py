@@ -14,6 +14,7 @@ import psutil
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, Response, PlainTextResponse, RedirectResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from . import actions, config, crypt, db, hub, spintax, transcode, youtube
@@ -59,6 +60,7 @@ async def lifespan(app):
 
 
 app = FastAPI(lifespan=lifespan, dependencies=[Depends(auth)])
+app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 
 
 def fmt_ts(ts):

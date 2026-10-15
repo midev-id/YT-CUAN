@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Semua server · YT-CUAN{% endblock %}
+{% block head %}<meta http-equiv="refresh" content="20">{% endblock %}
+{% block body %}
+{% set live_total = agents|map(attribute='live')|select|sum %}
+<div class="head">
+  <h1>Semua server</h1>
+  {% if live_total %}<span class="onair">On air · {{ live_total }} live</span>{% else %}<span class="offair">Tidak ada live</span>{% endif %}
+</div>
+<p class="lead">Diperbarui otomatis tiap 20 detik.</p>
+
+<section class="panel">
+  <div class="head"><h2>{{ agents|length }} server</h2><a class="btn" href="/add">+ Tambah server</a></div>
+  <div class="tw"><table>
+    <tr><th>Server</th><th>Koneksi</th><th>Channel</th><th>Live</th><th>Key jalan</th><th>Bermasalah</th><th>Kuota</th><th>Upload</th></tr>
+    {% for a in agents %}{% set s = a.state %}
+    <tr class="{{ '' if a.online else 'srv-off' }}">
+      <td><a href="/v/{{ a.id }}"><b>{{ a.name }}</b></a>{% if a.version %}<br><small class="mute">{{ a.version }}</small>{% endif %}</td>
+      <td>{% if a.online %}<span class="ok">online</span>{% else %}<span class="bad">offline</span><br><small class="mute">{{ a.last_seen|ago }}</small>{% endif %}</td>
+      {% if s %}
+      <td>{{ s.channels|map(attribute='title')|join(', ') or '—' }}</td>
+      <td>{% if a.live %}<span class="onair">{{ a.live }}</span>{% else %}<span class="mute">0</span>{% endif %}</td>
+      <td>{{ a.running }} dari {{ s['keys']|length }}</td>
+      <td class="{{ 'bad' if a.problems }}">{{ a.problems }}</td>
+      <td class="{{ 'bad' if s.quota.exhausted or s.quota.used > s.quota.limit * 0.8 }}">{{ s.quota.used }} / {{ s.quota.limit }}</td>
+      <td>{{ s.system.up_mbps }} Mbps</td>
+      {% else %}<td colspan="6" class="mute">Menunggu laporan pertama…</td>{% endif %}
+    </tr>
+    {% endfor %}
+  </table></div>
+</section>
+{% endblock %}

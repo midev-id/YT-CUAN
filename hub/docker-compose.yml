@@ -1,0 +1,10 @@
+# Hub on a server behind Cloudflare Tunnel: point ytcuan.autopreneur.id -> http://localhost:9000
+services:
+  hub:
+    build: { context: .., dockerfile: hub/Dockerfile }
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "127.0.0.1:9000:9000"
+    volumes:
+      - ./data:/data

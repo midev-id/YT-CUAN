@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Ccircle cx=%228%22 cy=%228%22 r=%226%22 fill=%22%23c8372d%22/%3E%3C/svg%3E">
+<title>{% block title %}YT-CUAN{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/ui.css">
+<style>
+  .srv-off { opacity:.55; }
+  .who { color:#8fa39a; font-size:13px; padding:0 10px; margin-top:24px; word-break:break-all; }
+  .who button { margin-top:6px; background:transparent; color:#dfe7e2; border-color:#3b4a43; }
+</style>
+{% block head %}{% endblock %}
+</head>
+<body>
+<div class="shell">
+  <aside>
+    <a class="brand" href="/">YT-CUAN</a>
+    <nav aria-label="Navigasi">
+      <a href="/" {% if request.url.path == '/' %}aria-current="page"{% endif %}>Semua server</a>
+      <div class="group">Server</div>
+      {% for a in nav %}
+        <a href="/v/{{ a.id }}" class="{{ '' if a.online else 'srv-off' }}" {% if request.url.path.startswith('/v/' ~ a.id) %}aria-current="page"{% endif %}>
+          <span class="dot {{ 'on' if a.live }}" aria-hidden="true"></span>{{ a.name }}</a>
+      {% endfor %}
+      <a class="add" href="/add">+ Tambah server</a>
+    </nav>
+    <div class="who">{{ user.email }}
+      <form method="post" action="/logout"><button>Keluar</button></form></div>
+  </aside>
+  <main>
+    {% set msg = request.query_params.get('msg') %}
+    {% if msg %}<div class="flash {{ 'bad' if request.query_params.get('err') }}" role="status">{{ msg }}</div>{% endif %}
+    {% block body %}{% endblock %}
+  </main>
+</div>
+</body>
+</html>

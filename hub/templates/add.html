@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Tambah server · YT-CUAN{% endblock %}
+{% block head %}<meta http-equiv="refresh" content="5">{% endblock %}
+{% block body %}
+<h1>Tambah server</h1>
+<p class="lead">Satu server untuk satu akun Google. Siapkan VPS Linux (Ubuntu 22.04 atau lebih baru) dan akses root.</p>
+
+<section class="panel" style="max-width:760px">
+  <ol class="how" style="padding-left:20px;margin:0">
+    <li>Login ke VPS lewat SSH sebagai root.</li>
+    <li>Tempel perintah ini, lalu tekan Enter:
+      <pre id="cmd" style="margin:10px 0">{{ cmd }}</pre>
+      <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('cmd').textContent).then(()=>this.textContent='Tersalin')">Salin perintah</button>
+    </li>
+    <li style="margin-top:12px">Tunggu 2–5 menit. Halaman ini pindah sendiri begitu server tersambung.</li>
+  </ol>
+  <p class="mute" style="margin-top:16px">Kode <code>{{ code }}</code> berlaku {{ minutes }} menit lagi dan hanya bisa dipakai sekali.
+    Server yang sudah terpasang tanpa kode bisa disambungkan dengan <code>yt-cuan pair {{ code }}</code>.</p>
+</section>
+{% endblock %}

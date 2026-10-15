@@ -11,8 +11,11 @@ from . import config
 
 
 def pair(code):
-    r = requests.post(f"{config.HUB_URL}/api/agents/pair", timeout=20,
-                      json={"code": code.strip(), "hostname": socket.gethostname(), "version": config.VERSION})
+    try:
+        r = requests.post(f"{config.HUB_URL}/api/agents/pair", timeout=20,
+                          json={"code": code.strip(), "hostname": socket.gethostname(), "version": config.VERSION})
+    except requests.RequestException as e:
+        raise SystemExit(f"Hub {config.HUB_URL} tidak bisa dihubungi ({type(e).__name__}). Cek koneksi internet VPS.")
     if r.status_code != 200:
         detail = r.json().get("detail") if r.headers.get("content-type", "").startswith("application/json") else r.text
         raise SystemExit(f"Pairing gagal ({r.status_code}): {detail or 'kode salah atau kedaluwarsa'}")

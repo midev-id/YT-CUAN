@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Masuk · YT-CUAN</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/ui.css">
+<style>
+  body { background:var(--wall) !important; display:grid; place-items:center; min-height:100vh; padding:16px; }
+  .box { max-width:420px; width:100%; }
+  .signal { display:flex; gap:6px; margin-bottom:22px; }
+  .signal i { width:10px; height:10px; border-radius:50%; background:var(--pine); }
+  .signal i:last-child { background:var(--air); }
+</style>
+</head>
+<body>
+<div class="box panel">
+  <div class="signal" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+  <h1>YT-CUAN</h1>
+  <p class="lead">Pantau dan kendalikan semua server live YouTube Anda dari satu tempat.</p>
+  {% set msg = request.query_params.get('msg') %}
+  {% if msg %}<div class="flash bad" role="status">{{ msg }}</div>{% endif %}
+  {% if firebase %}
+  <form id="fb" method="post" action="/auth/firebase"><input type="hidden" name="id_token">
+    <button type="button" id="go" class="primary big">Masuk dengan Google</button></form>
+  <p id="fberr" class="bad" role="alert" hidden></p>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+    const auth = getAuth(initializeApp({{ firebase|tojson }}));
+    const go = document.getElementById("go"), err = document.getElementById("fberr"), form = document.getElementById("fb");
+    go.onclick = async () => {
+      go.disabled = true; err.hidden = true;
+      try {
+        const cred = await signInWithPopup(auth, new GoogleAuthProvider());
+        form.id_token.value = await cred.user.getIdToken();
+        form.submit();
+      } catch (e) {
+        go.disabled = false;
+        if (e.code === "auth/popup-closed-by-user" || e.code === "auth/cancelled-popup-request") return;
+        err.textContent = e.code === "auth/popup-blocked" ? "Popup diblokir browser. Izinkan popup untuk situs ini, lalu klik lagi."
+          : e.code === "auth/unauthorized-domain" ? "Domain ini belum diizinkan di Firebase (Authentication > Settings > Authorized domains)."
+          : "Login gagal: " + e.code;
+        err.hidden = false;
+      }
+    };
+  </script>
+  {% endif %}
+  {% if dev %}<form method="post" action="/auth/dev"><button>Masuk sebagai {{ dev }} (mode uji lokal)</button></form>{% endif %}
+  {% if not firebase and not dev %}<p class="bad">Login belum diatur: isi FIREBASE_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID.</p>{% endif %}
+</div>
+</body>
+</html>
