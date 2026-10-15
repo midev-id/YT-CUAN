@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block title %}{{ ch.title }} · YT-CUAN{% endblock %}
+{% block body %}
+{% set live_n = broadcasts|selectattr('state','equalto','live')|list|length %}
+<div class="head">
+  <h1>{{ ch.title }}</h1>
+  {% if live_n %}<span class="onair">On air · {{ live_n }} live</span>{% else %}<span class="offair">Tidak ada live</span>{% endif %}
+</div>
+{% if st.current and st.current != 'live' %}
+<div class="panel" style="border-color:var(--pine)">
+  <h2>Belum siap live</h2>
+  <ul class="checks" style="list-style:none;padding:0;margin:0 0 8px">
+    <li>{{ '✓' if st.done['stream'] else '○' }} Stream key {% if not st.done['stream'] %}<a href="/setup?c={{ ch.id }}#keys">buat dulu</a>{% endif %}</li>
+    <li>{{ '✓' if st.video else '○' }} Video siap: {{ st.video }}</li>
+    <li>{{ '✓' if st.audio else '○' }} Musik siap: {{ st.audio }}</li>
+    <li>{{ '✓' if st.titles else '○' }} Judul: {{ st.titles }}</li>
+  </ul>
+  <a href="/setup?c={{ ch.id }}">Lihat panduan langkah demi langkah</a>
+</div>
+{% endif %}
+
+{% if not ch.token_ok %}<div class="card bad">Token channel tidak valid. <a href="/oauth/start">Hubungkan ulang</a>.</div>{% endif %}
+
+<div class="card">
+  <div class="row" style="justify-content:space-between">
+    <h2>Stream key</h2>
+    <span class="row"><a class="btn" href="/c/{{ ch.id }}/token.pickle">Unduh token.pickle</a>
+    <form class="inline" method="post" action="/c/{{ ch.id }}/sync"><button>Sinkron dari YouTube</button></form></span>
+  </div>
+  <p class="mute">Key dibuat di YouTube Studio (key permanen), lalu klik Sinkron. Satu key = satu ffmpeg, maks {{ s.slots_per_key }} live.</p>
+  <div class="tw"><table>
+    <tr><th>Key</th><th>Status</th><th>Sumber</th><th>Live</th><th>Aksi</th></tr>
+    {% for k in keys %}
+    <tr>
+      <td><b>{{ k.name }}</b><br><span class="mute">{{ k.key_enc|mask }}</span></td>
+      <td><span class="{{ k.state }}">{{ k.state|st }}</span>{% if k.speed %} <span class="mute">{{ k.speed }}x</span>{% endif %}
+        {% if k.slots_paused %}<br><span class="warn">slot dijeda</span>{% endif %}
+        {% if k.last_error %}<br><small class="bad">{{ k.last_error[:200] }}</small>{% endif %}</td>
+      <td>
+        <form method="post" action="/k/{{ k.id }}/config" class="row">
+          <input type="number" name="n_video" value="{{ k.n_video }}" min="1" style="width:64px" title="Jumlah video acak"> video
+          <input type="number" name="n_audio" value="{{ k.n_audio }}" min="1" style="width:64px" title="Jumlah audio acak"> audio
+          <label class="row" style="margin:0"><input type="checkbox" name="locked" {% if k.locked %}checked{% endif %}> kunci pilihan</label>
+          <button>Simpan</button>
+        </form>
+      </td>
+      <td>{{ broadcasts|selectattr('key_id','equalto',k.id)|selectattr('state','in',['creating','live','ending'])|list|length }}</td>
+      <td class="row">
+        {% if k.desired == 'running' %}
+          <form class="inline" method="post" action="/k/{{ k.id }}/stop" onsubmit="return confirm('Hentikan {{ k.name }}? Semua live di key ini akan diakhiri.')"><button class="danger">Stop</button></form>
+        {% else %}
+          <form class="inline" method="post" action="/k/{{ k.id }}/start"><button class="primary">Start</button></form>
+        {% endif %}
+        {% if k.slots_paused %}
+          <form class="inline" method="post" action="/k/{{ k.id }}/resume-slots"><button>Lanjutkan slot</button></form>
+        {% else %}
+          <form class="inline" method="post" action="/k/{{ k.id }}/pause-slots"><button>Jeda slot</button></form>
+        {% endif %}
+        <form class="inline" method="post" action="/k/{{ k.id }}/reshuffle"><button title="Berlaku saat start berikutnya">Acak ulang</button></form>
+        <a class="btn" href="/k/{{ k.id }}/log" target="_blank">Log</a>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="mute">Belum ada key. Buat di YouTube Studio lalu klik Sinkron.</td></tr>
+    {% endfor %}
+  </table></div>
+</div>
+
+<div class="card">
+  <h2>Broadcast (aktif + 24 jam terakhir)</h2>
+  <div class="tw"><table>
+    <tr><th>Judul</th><th>Key</th><th>Status</th><th>Mulai</th><th>Berakhir</th><th>Penonton</th><th></th></tr>
+    {% for b in broadcasts %}
+    <tr>
+      <td>{% if b.yt_id %}<a href="https://youtube.com/watch?v={{ b.yt_id }}" target="_blank">{{ b.title }}</a>{% else %}{{ b.title or '-' }}{% endif %}
+        {% if b.error %}<br><small class="bad">{{ b.error[:200] }}</small>{% endif %}</td>
+      <td>{{ b.key_name }}</td>
+      <td class="{{ b.state }}">{{ b.state|st }}</td>
+      <td>{{ b.started|ts }}</td>
+      <td>{{ b.ends|ts if b.ends else ('tanpa batas' if b.state == 'live' else '-') }}</td>
+      <td>{{ b.viewers if b.viewers is not none else '-' }}</td>
+      <td>{% if b.state == 'live' %}<form class="inline" method="post" action="/b/{{ b.id }}/end" onsubmit="return confirm('Akhiri live ini sekarang?')"><button class="danger">Akhiri</button></form>{% endif %}</td>
+    </tr>
+    {% else %}<tr><td colspan="7" class="mute">Belum ada.</td></tr>{% endfor %}
+  </table></div>
+</div>
+
+<div class="card" id="titles">
+  <h2>Judul <span class="pill">{{ title_count }} tersisa</span></h2>
+  <form method="post" action="/c/{{ ch.id }}/titles">
+    <textarea name="titles" rows="8" placeholder="Satu judul per baris (maks 100 karakter)">{{ titles }}</textarea>
+    <div class="row"><button class="primary">Simpan judul</button></div>
+  </form>
+  <form method="post" action="/c/{{ ch.id }}/titles/upload" enctype="multipart/form-data" class="row" style="margin-top:8px">
+    <input type="file" name="file" accept=".txt" required><button>Tambah dari .txt</button>
+  </form>
+</div>
+
+<div class="card" id="settings">
+  <h2>Pengaturan</h2>
+  <form method="post" action="/c/{{ ch.id }}/settings">
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+      <label>Durasi live (jam)<small>0 = tanpa akhir</small><input type="number" step="0.5" min="0" name="cycle_hours" value="{{ s.cycle_hours }}"></label>
+      <label>Live per key<small>Duplicate per Key</small><input type="number" min="1" max="10" name="slots_per_key" value="{{ s.slots_per_key }}"></label>
+      <label>Privacy<select name="privacy">{% for p in ['public','unlisted','private'] %}<option {% if s.privacy == p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select></label>
+      <label>Kategori ID<small>10 = Music</small><input name="category_id" value="{{ s.category_id }}"></label>
+      <label>Tag<small>pisahkan dengan koma</small><input name="tags" value="{{ s.tags }}"></label>
+      <label>Jitter sebelum live (detik)<span class="row"><input type="number" min="0" name="jitter_min" value="{{ s.jitter_min }}" style="width:80px">–<input type="number" min="0" name="jitter_max" value="{{ s.jitter_max }}" style="width:80px"></span></label>
+      <label>Resolusi video<select name="resolution">{% for r in [1080, 720] %}<option value="{{ r }}" {% if s.resolution|int == r %}selected{% endif %}>{{ r }}p</option>{% endfor %}</select></label>
+      <label>Bitrate<small>CBR jika live blank/buffering. Mengubah ini = encode ulang library.</small>
+        <select name="rate_mode"><option value="vbr" {% if s.rate_mode == 'vbr' %}selected{% endif %}>VBR</option><option value="cbr" {% if s.rate_mode == 'cbr' %}selected{% endif %}>CBR</option></select></label>
+      <div>
+        <label class="row"><input type="checkbox" name="change_title" {% if s.change_title %}checked{% endif %}> Ganti judul tiap siklus</label>
+        <label class="row"><input type="checkbox" name="delete_title" {% if s.delete_title %}checked{% endif %}> Hapus judul setelah dipakai</label>
+        <label class="row"><input type="checkbox" name="keep_original" {% if s.keep_original %}checked{% endif %}> Simpan file asli upload</label>
+      </div>
+      <div>
+        <label class="row"><input type="checkbox" name="filter_view" {% if s.filter_view %}checked{% endif %}> Filter View</label>
+        <small class="mute">Akhir siklus: ada penonton → lanjut; 0 penonton → live diganti baru. Berisiko kebijakan spam YouTube.</small>
+        <label>Minimal live (menit)<input type="number" min="10" name="fv_min_minutes" value="{{ s.fv_min_minutes }}"></label>
+        <label>Maks restart / key / hari<input type="number" min="0" name="fv_max_restarts" value="{{ s.fv_max_restarts }}"></label>
+      </div>
+    </div>
+    <label>Template deskripsi (spintax <code>{a|b|c}</code>, boleh bertingkat)
+      <textarea name="description_template" rows="8">{{ s.description_template }}</textarea></label>
+    {% if preview %}<details><summary>Contoh hasil</summary><pre>{{ preview }}</pre></details>{% endif %}
+    <div class="row"><button class="primary">Simpan pengaturan</button></div>
+  </form>
+</div>
+
+<div class="card" id="media">
+  <h2>Media</h2>
+  <form method="post" action="/c/{{ ch.id }}/media" enctype="multipart/form-data" class="row" id="upform">
+    <select name="kind"><option value="video">Video</option><option value="audio">Audio</option><option value="thumb">Thumbnail</option></select>
+    <input type="file" name="files" multiple required>
+    <button class="primary">Unggah</button>
+    <span id="upstat" class="mute" role="status"></span>
+  </form>
+  <script>
+  // Upload with a visible progress readout; big videos can take minutes and a frozen page looks broken.
+  document.getElementById('upform').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var f = this, out = document.getElementById('upstat'), x = new XMLHttpRequest();
+    f.querySelector('button').disabled = true;
+    x.upload.onprogress = function (p) { if (p.lengthComputable) out.textContent = 'Mengunggah ' + Math.round(p.loaded / p.total * 100) + '%'; };
+    x.onload = function () { location.href = x.responseURL; };
+    x.onerror = function () { out.textContent = 'Unggahan gagal, cek koneksi lalu coba lagi.'; f.querySelector('button').disabled = false; };
+    x.open('POST', f.action); x.send(new FormData(f));
+  });
+  </script>
+  <p class="mute">Video → H.264 {{ s.resolution }}p 30fps {{ s.rate_mode|upper }} tanpa audio. Audio → AAC 192 kbps 48 kHz stereo. Thumbnail → JPG 1280×720 ≤ 2 MB.</p>
+  <div class="tw"><table>
+    <tr><th>Jenis</th><th>File</th><th>Status</th><th></th></tr>
+    {% for m in media %}
+    <tr>
+      <td>{{ m.kind }}</td><td>{{ m.orig_name }}</td>
+      <td><span class="{{ m.status }}">{{ m.status|st }}</span>
+        {% if m.status == 'processing' %}<div class="bar"><i style="width:{{ m.progress|int }}%"></i></div>{% endif %}
+        {% if m.error %}<details><summary class="bad">error</summary><pre>{{ m.error }}</pre></details>{% endif %}</td>
+      <td class="row">
+        {% if m.status == 'failed' %}<form class="inline" method="post" action="/media/{{ m.id }}/retry"><button>Ulangi</button></form>{% endif %}
+        <form class="inline" method="post" action="/media/{{ m.id }}/delete" onsubmit="return confirm('Hapus {{ m.orig_name }}?')"><button class="danger">Hapus</button></form>
+      </td>
+    </tr>
+    {% else %}<tr><td colspan="4" class="mute">Belum ada media.</td></tr>{% endfor %}
+  </table></div>
+</div>
+
+<div class="card">
+  <h2>Log channel</h2>
+  <div class="tw"><table>
+    {% for e in events %}<tr><td class="mute" style="white-space:nowrap">{{ e.ts|ts }}</td><td class="{{ e.level }}">{{ e.level|st }}</td><td>{{ e.msg }}</td></tr>
+    {% else %}<tr><td class="mute">Kosong.</td></tr>{% endfor %}
+  </table></div>
+</div>
+{% endblock %}

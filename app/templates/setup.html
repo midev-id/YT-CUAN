@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% block title %}Panduan setup · YT-CUAN{% endblock %}
+{% block head %}
+<style>
+  /* The setup path drawn as a signal chain: each node lights up once that link carries signal. */
+  .path { list-style:none; margin:0; padding:0; position:relative; max-width:760px; }
+  .step { position:relative; padding:0 0 22px 56px; }
+  .step::before { content:""; position:absolute; left:17px; top:36px; bottom:-2px; width:2px; background:var(--line); }
+  .step:last-child::before { display:none; }
+  .step.done::before { background:var(--pine); }
+  .node { position:absolute; left:0; top:0; width:36px; height:36px; border-radius:50%; display:grid; place-items:center;
+    font-weight:700; background:#fff; border:2px solid var(--line); color:var(--mute); font-variant-numeric:tabular-nums; }
+  .done .node { background:var(--pine); border-color:var(--pine); color:#fff; }
+  .now .node { border-color:var(--pine); color:var(--pine); box-shadow:0 0 0 5px var(--pine-soft); }
+  .live-step.done .node { background:var(--air); border-color:var(--air); }
+  .step > details { background:var(--panel); border:1px solid var(--line); border-radius:var(--r-lg); }
+  .now > details { border-color:var(--pine); }
+  .step summary { list-style:none; padding:14px 18px; display:flex; gap:12px; align-items:baseline; justify-content:space-between; flex-wrap:wrap; }
+  .step summary::-webkit-details-marker { display:none; }
+  .step summary h2 { font-size:17px; margin:0; }
+  .step summary .state { font-size:14px; color:var(--mute); }
+  .done summary .state { color:var(--ok); }
+  .todo summary h2 { color:var(--mute); }
+  .body { padding:0 18px 18px; }
+  .body > p:first-child { margin-top:0; }
+  .how { margin:12px 0; padding-left:20px; }
+  .how li { margin-bottom:8px; }
+  .how li::marker { color:var(--mute); font-variant-numeric:tabular-nums; }
+  .alt { margin-top:16px; padding-top:14px; border-top:1px dashed var(--line); }
+  .note { background:var(--soft); border-left:3px solid var(--amber); padding:10px 12px; border-radius:0 var(--r-sm) var(--r-sm) 0; margin:12px 0; font-size:14px; }
+  .checks { list-style:none; padding:0; margin:0 0 12px; display:grid; gap:6px; }
+  .checks li::before { content:"○"; display:inline-block; width:22px; color:var(--mute); }
+  .checks li.ok::before { content:"●"; color:var(--ok); }
+  .checks li.ok { color:var(--ink); }
+  .who { margin:-8px 0 22px; }
+  .who a { margin-right:6px; }
+</style>
+{% endblock %}
+{% block body %}
+{% set d = st.done %}
+<h1>Siapkan live pertama</h1>
+<p class="lead">Lima langkah dari nol sampai channel live 24 jam. Langkah yang sudah beres menyala hijau,
+  langkah yang perlu dikerjakan sekarang terbuka otomatis.</p>
+
+{% set chans = nav_channels() %}
+{% if chans|length > 1 %}
+<p class="who mute">Panduan untuk channel:
+  {% for c in chans %}<a href="/setup?c={{ c.id }}" {% if st.ch and st.ch.id == c.id %}aria-current="true" style="font-weight:700"{% endif %}>{{ c.title }}</a>{% endfor %}</p>
+{% endif %}
+
+<ol class="path">
+
+  {# 1 ---------------------------------------------------------------- #}
+  <li class="step {{ 'done' if d.google else 'now' if st.current == 'google' else 'todo' }}" id="google">
+    <span class="node" aria-hidden="true">{{ '✓' if d.google else '1' }}</span>
+    <details {% if st.current == 'google' %}open{% endif %}>
+      <summary><h2>Pasang akses Google</h2>
+        <span class="state">{% if d.google %}Terpasang (tipe {{ client_type }}){% else %}Belum{% endif %}</span></summary>
+      <div class="body">
+        <p>Aplikasi butuh file <code>client_secrets.json</code> supaya boleh mengatur live di YouTube atas nama channel Anda.
+          Cukup sekali untuk semua channel.</p>
+        <form method="post" action="/oauth/client-secrets" enctype="multipart/form-data" class="row">
+          <input type="file" name="file" accept=".json" required aria-label="File client_secrets.json">
+          <button class="{{ '' if d.google else 'primary' }}">{{ 'Ganti file' if d.google else 'Unggah client_secrets.json' }}</button>
+        </form>
+        <details class="alt" {% if not d.google %}open{% endif %}>
+          <summary><b>Belum punya filenya? Buat di Google Cloud (±10 menit)</b></summary>
+          <ol class="how">
+            <li>Buka <a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">Google Cloud</a>,
+              buat project baru (nama bebas, misalnya <i>YT Live</i>).</li>
+            <li>Aktifkan <a href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" target="_blank" rel="noopener">YouTube Data API v3</a>
+              untuk project itu, klik <b>Enable</b>.</li>
+            <li>Buka <a href="https://console.cloud.google.com/auth/overview" target="_blank" rel="noopener">OAuth consent screen</a>.
+              Pilih <b>External</b>, isi nama aplikasi dan email Anda. Di bagian <b>Audience → Test users</b>,
+              tambahkan email Google pemilik tiap channel.</li>
+            <li>Buka <a href="https://console.cloud.google.com/auth/clients" target="_blank" rel="noopener">Clients</a> → <b>Create client</b>.
+              {% if local %}Pilih tipe <b>Desktop app</b> (dashboard ini dibuka dari komputer sendiri).
+              {% else %}Pilih tipe <b>Web application</b>, lalu di <b>Authorized redirect URIs</b> isi
+              <code>{{ callback }}</code>{% endif %}</li>
+            <li>Klik <b>Download JSON</b> pada client yang baru dibuat, lalu unggah file itu di atas.</li>
+          </ol>
+          <p class="note">Selama status aplikasi di Google masih <i>Testing</i>, login berlaku 7 hari. Untuk pemakaian jangka panjang,
+            klik <b>Publish app</b> di halaman Audience.</p>
+        </details>
+      </div>
+    </details>
+  </li>
+
+  {# 2 ---------------------------------------------------------------- #}
+  <li class="step {{ 'done' if d.channel else 'now' if st.current == 'channel' else 'todo' }}" id="channel">
+    <span class="node" aria-hidden="true">{{ '✓' if d.channel else '2' }}</span>
+    <details {% if st.current == 'channel' or request.query_params.get('add') %}open{% endif %}>
+      <summary><h2>Hubungkan channel YouTube</h2>
+        <span class="state">{% if d.channel %}{{ st.ch.title }}{% else %}Belum{% endif %}</span></summary>
+      <div class="body">
+        {% if not d.google %}
+          <p class="mute">Selesaikan langkah 1 dulu.</p>
+        {% else %}
+          <p>Satu server dipakai untuk <b>satu akun Google</b>. Login dengan akun pemilik channel. Kalau akun itu punya beberapa channel (brand account), pilih channelnya di layar Google, lalu ulangi untuk channel berikutnya.</p>
+          {% if client_type == 'Desktop' and not local %}
+            <p class="note">File akses Anda bertipe <b>Desktop</b>, yang hanya bisa login dari dashboard yang dibuka lewat
+              <code>localhost</code>. Login dari komputer sendiri lalu impor token.pickle di bawah, atau ganti file di langkah 1
+              dengan client tipe <b>Web application</b>.</p>
+          {% endif %}
+          <p><a class="btn {{ 'primary big' if not d.channel }}" href="/oauth/start">{{ 'Tambah channel lain dari akun yang sama' if d.channel else 'Login dengan Google' }}</a></p>
+          <p class="note">Google akan menampilkan <i>"Google hasn't verified this app"</i>. Itu wajar untuk aplikasi pribadi:
+            klik <b>Advanced</b> → <b>Go to … (unsafe)</b>, lalu centang izin YouTube dan klik <b>Continue</b>.</p>
+          <div class="alt">
+            <h3>Punya token.pickle dari tool lama?</h3>
+            <p class="mute">Channel langsung terhubung tanpa login ulang.</p>
+            <form method="post" action="/oauth/import" enctype="multipart/form-data" class="row">
+              <input type="file" name="file" accept=".pickle" required aria-label="File token.pickle">
+              <button>Impor token.pickle</button>
+            </form>
+          </div>
+        {% endif %}
+      </div>
+    </details>
+  </li>
+
+  {# 3 ---------------------------------------------------------------- #}
+  <li class="step {{ 'done' if d.stream else 'now' if st.current == 'stream' else 'todo' }}" id="keys">
+    <span class="node" aria-hidden="true">{{ '✓' if d.stream else '3' }}</span>
+    <details {% if st.current == 'stream' %}open{% endif %}>
+      <summary><h2>Buat stream key</h2>
+        <span class="state">{% if d.stream %}{{ st.n_keys }} key{% else %}Belum{% endif %}</span></summary>
+      <div class="body">
+        {% if not st.ch %}
+          <p class="mute">Hubungkan channel dulu.</p>
+        {% else %}
+          <p>Stream key adalah "jalur" pengiriman video ke YouTube. Satu key bisa membawa sampai {{ 3 }} live sekaligus.
+            Disarankan 3 key per channel.</p>
+          <ol class="how">
+            <li>Buka <a href="https://studio.youtube.com" target="_blank" rel="noopener">YouTube Studio</a> dengan akun <b>{{ st.ch.title }}</b>,
+              klik <b>Create → Go live</b>.</li>
+            <li>Pilih tab <b>Stream</b>. Di bagian <b>Stream key</b>, buka pilihan key lalu klik <b>Create new stream key</b>.</li>
+            <li>Beri nama (misalnya <i>Key 1</i>), pilih <b>Variable</b>, lalu simpan. Ulangi untuk key berikutnya.</li>
+            <li>Kembali ke sini dan klik tombol di bawah.</li>
+          </ol>
+          <p class="note">Channel yang belum pernah live harus verifikasi nomor HP dulu, dan YouTube bisa butuh sampai 24 jam
+            sebelum fitur live aktif.</p>
+          <form method="post" action="/c/{{ st.ch.id }}/sync">
+            <input type="hidden" name="next" value="/setup?c={{ st.ch.id }}">
+            <button class="{{ '' if d.stream else 'primary' }}">{{ 'Cek ulang stream key' if d.stream else 'Ambil stream key dari YouTube' }}</button>
+          </form>
+        {% endif %}
+      </div>
+    </details>
+  </li>
+
+  {# 4 ---------------------------------------------------------------- #}
+  <li class="step {{ 'done' if d.content else 'now' if st.current == 'content' else 'todo' }}" id="content">
+    <span class="node" aria-hidden="true">{{ '✓' if d.content else '4' }}</span>
+    <details {% if st.current == 'content' %}open{% endif %}>
+      <summary><h2>Isi video, musik, dan judul</h2>
+        <span class="state">{% if d.content %}Siap{% else %}Belum lengkap{% endif %}</span></summary>
+      <div class="body">
+        {% if not st.ch %}
+          <p class="mute">Hubungkan channel dulu.</p>
+        {% else %}
+          <p>Live memutar video secara acak tanpa suara, dengan musik dari library audio di atasnya.
+            File yang diunggah otomatis dikonversi ke format yang aman untuk YouTube.</p>
+          <ul class="checks">
+            <li class="{{ 'ok' if st.video }}">Video siap: {{ st.video }} <a href="/c/{{ st.ch.id }}#media">unggah</a></li>
+            <li class="{{ 'ok' if st.audio }}">Musik siap: {{ st.audio }} <a href="/c/{{ st.ch.id }}#media">unggah</a></li>
+            <li class="{{ 'ok' if st.titles }}">Judul live: {{ st.titles }} <a href="/c/{{ st.ch.id }}#titles">tulis</a></li>
+          </ul>
+          <p class="mute">Thumbnail boleh menyusul. Jumlah di atas hanya menghitung file yang selesai dikonversi.</p>
+        {% endif %}
+      </div>
+    </details>
+  </li>
+
+  {# 5 ---------------------------------------------------------------- #}
+  <li class="step live-step {{ 'done' if d.live else 'now' if st.current == 'live' else 'todo' }}" id="live">
+    <span class="node" aria-hidden="true">{{ '●' if d.live else '5' }}</span>
+    <details {% if st.current == 'live' %}open{% endif %}>
+      <summary><h2>Mulai live</h2>
+        <span class="state">{% if d.live %}<span class="onair">On air · {{ st.running }} key</span>{% else %}Belum{% endif %}</span></summary>
+      <div class="body">
+        {% if st.ch %}
+          <p>Buka halaman channel, cek durasi live dan privacy di <b>Pengaturan</b>, lalu klik <b>Start</b> pada stream key.
+            Live di YouTube dibuat otomatis sekitar 1–2 menit kemudian.</p>
+          <p><a class="btn {{ 'primary big' if st.current == 'live' }}" href="/c/{{ st.ch.id }}">Buka {{ st.ch.title }}</a></p>
+        {% else %}
+          <p class="mute">Hubungkan channel dulu.</p>
+        {% endif %}
+      </div>
+    </details>
+  </li>
+</ol>
+{% endblock %}

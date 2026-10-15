@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Ringkasan · YT-CUAN{% endblock %}
+{% block head %}<meta http-equiv="refresh" content="30">{% endblock %}
+{% block body %}
+<div class="head">
+  <h1>Ringkasan</h1>
+  {% if live %}<span class="onair">On air · {{ live }} live</span>{% else %}<span class="offair">Tidak ada live</span>{% endif %}
+</div>
+<p class="lead">Diperbarui otomatis tiap 30 detik.
+  {% if hub.connected %}<span class="ok">Tersambung ke hub</span> <span class="mute">({{ hub_url }})</span>.
+  {% elif paired %}<span class="warn">Hub: {{ hub.error or 'menyambung…' }}</span>
+  {% else %}<span class="mute">Belum dipasangkan ke hub. Server ini tetap bisa dipakai sendiri.</span>{% endif %}</p>
+
+{% set problems = keys.get('error', 0) + keys.get('degraded', 0) + keys.get('reconnecting', 0) %}
+<section class="panel" aria-label="Kondisi server">
+  <div class="readouts">
+    <div class="readout"><b>{{ keys.get('running', 0) }}</b><span>Stream key jalan</span></div>
+    <div class="readout"><b class="{{ 'bad' if problems }}">{{ problems }}</b><span>Key bermasalah</span></div>
+    <div class="readout"><b class="{{ 'bad' if quota_exhausted or quota_used > quota_limit * 0.8 }}">{{ quota_used }} / {{ quota_limit }}</b>
+      <span>Kuota YouTube hari ini{% if quota_exhausted %}, habis{% endif %}</span></div>
+    <div class="readout"><b>{{ '%.1f'|format(up_mbps) }} Mbps</b><span>Upload</span></div>
+    <div class="readout"><b>{{ cpu|round|int }}%</b><span>CPU</span></div>
+    <div class="readout"><b class="{{ 'bad' if disk > 90 }}">{{ disk|round|int }}%</b><span>Disk terpakai</span></div>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="head"><h2>Channel</h2><a class="btn" href="/setup?add=1#channel">+ Tambah channel</a></div>
+  <div class="tw"><table>
+    <tr><th>Channel</th><th>Login</th><th>Stream key jalan</th><th>Live</th></tr>
+    {% for c in channels %}
+    <tr>
+      <td><a href="/c/{{ c.id }}"><b>{{ c.title }}</b></a></td>
+      <td>{% if c.token_ok %}<span class="ok">aktif</span>{% else %}<a class="bad" href="/setup?add=1#channel">login ulang</a>{% endif %}</td>
+      <td>{{ c.keys_on }} dari {{ c.keys_total }}{% if not c.keys_total %} <a href="/setup?c={{ c.id }}#keys">buat key</a>{% endif %}</td>
+      <td>{% if c.live %}<span class="onair">{{ c.live }}</span>{% else %}<span class="mute">0</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table></div>
+</section>
+
+<section class="panel">
+  <details>
+    <summary><h2 style="display:inline">Catatan aktivitas</h2> <span class="mute">{{ events|length }} terakhir</span></summary>
+    <div class="tw" style="margin-top:12px"><table>
+      {% for e in events %}
+      <tr><td class="mute" style="white-space:nowrap">{{ e.ts|ts }}</td><td class="{{ e.level }}">{{ e.level|st }}</td>
+          <td class="mute">{{ e.ch or '' }}</td><td>{{ e.msg }}</td></tr>
+      {% else %}<tr><td class="mute">Belum ada aktivitas.</td></tr>{% endfor %}
+    </table></div>
+  </details>
+</section>
+{% endblock %}
