@@ -61,7 +61,7 @@ function Get-Release {
   $tmp = Join-Path $env:TEMP "yt-cuan-release"
   Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
   New-Item -ItemType Directory $tmp | Out-Null
-  Invoke-WebRequest "$HubUrl/download/yt-cuan-agent-win64.zip" -OutFile "$tmp\r.zip" -UseBasicParsing
+  Invoke-WebRequest "$HubUrl/download/yt-cuan-agent-win64.zip?t=$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())" -OutFile "$tmp\r.zip" -UseBasicParsing
   Expand-Archive "$tmp\r.zip" $tmp
   return $tmp
 }

@@ -281,7 +281,8 @@ def add_page(request: Request, code: str = ""):
 @app.get("/install", response_class=PlainTextResponse)
 def install_script():
     s = INSTALL_SH.read_text(encoding="utf-8")
-    return s.replace("https://ytcuan.autopreneur.id", HUB_URL).replace("ghcr.io/midev-id/yt-cuan-agent:latest", AGENT_IMAGE)
+    s = s.replace("https://ytcuan.autopreneur.id", HUB_URL).replace("ghcr.io/midev-id/yt-cuan-agent:latest", AGENT_IMAGE)
+    return PlainTextResponse(s, headers={"Cache-Control": "no-store"})
 
 
 _latest = {"mtime": None, "v": None}
@@ -302,7 +303,8 @@ def latest_version():
 
 @app.get("/install.ps1", response_class=PlainTextResponse)
 def install_ps1():
-    return INSTALL_PS1.read_text(encoding="utf-8").replace("https://ytcuan.autopreneur.id", HUB_URL)
+    s = INSTALL_PS1.read_text(encoding="utf-8").replace("https://ytcuan.autopreneur.id", HUB_URL)
+    return PlainTextResponse(s, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/download/{name}")
@@ -310,7 +312,8 @@ def download(name: str):
     f = DIST_DIR / name
     if "/" in name or "\\" in name or name.startswith(".") or not f.is_file():
         raise HTTPException(404)
-    return FileResponse(f, filename=name)
+    # no-store: Cloudflare caches .zip for 4 hours by default, which would hand out an old release
+    return FileResponse(f, filename=name, headers={"Cache-Control": "no-store"})
 
 
 @app.put("/api/releases/{name}")

@@ -8,7 +8,7 @@ function Install-YtCuan([string]$Code = "") {
   Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
   New-Item -ItemType Directory $tmp | Out-Null
   Write-Host "`nMengunduh YT-CUAN…" -ForegroundColor Cyan
-  Invoke-WebRequest "$hub/download/yt-cuan-agent-win64.zip" -OutFile "$tmp\r.zip" -UseBasicParsing
+  Invoke-WebRequest "$hub/download/yt-cuan-agent-win64.zip?t=$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())" -OutFile "$tmp\r.zip" -UseBasicParsing
   Expand-Archive "$tmp\r.zip" $tmp
   & powershell -NoProfile -ExecutionPolicy Bypass -File "$tmp\yt-cuan.ps1" install -Code $Code -Source $tmp
 }
