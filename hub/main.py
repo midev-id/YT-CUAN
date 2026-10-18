@@ -470,4 +470,4 @@ async def agent_ws(ws: WebSocket):
 
 @app.get("/healthz")
 def healthz():
-    return {"ok": True, "agents_online": len(links)}
+    return {"ok": True, "agents_online": len(links), "agents": one("SELECT COUNT(*) n FROM agents")["n"]}
