@@ -41,3 +41,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release create $env:GITHUB_REF_NAME build/yt-cuan-agent-win64.zip --generate-notes
+      - name: Publish to hub
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        env:
+          RELEASE_TOKEN: ${{ secrets.HUB_RELEASE_TOKEN }}
+        run: |
+          curl.exe --fail-with-body -sS -X PUT -H "Authorization: Bearer $env:RELEASE_TOKEN" `
+            --data-binary "@build/yt-cuan-agent-win64.zip" https://ytcuan.autopreneur.id/api/releases/yt-cuan-agent-win64.zip

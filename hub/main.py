@@ -37,6 +37,8 @@ AGENT_IMAGE = os.environ.get("AGENT_IMAGE", "ghcr.io/midev-id/yt-cuan-agent:late
 INSTALL_SH = Path(os.environ.get("INSTALL_SH", HERE.parent / "install.sh"))
 INSTALL_PS1 = Path(os.environ.get("INSTALL_PS1", HERE.parent / "windows" / "install.ps1"))
 DIST_DIR = DATA_DIR / "dist"  # release files served at /download/<name> (Windows agent zip)
+RELEASE_TOKEN = os.environ.get("RELEASE_TOKEN", "")  # CI uploads release files with this (PRD §13.9 H4)
+RELEASE_FILES = {"yt-cuan-agent-win64.zip"}
 STATIC_DIR = Path(os.environ.get("STATIC_DIR", HERE.parent / "app" / "static"))
 RPC_TIMEOUT = 90  # channel.sync / oauth.token call YouTube from the agent
 OFFLINE_AFTER = 45
@@ -292,6 +294,27 @@ def download(name: str):
     if "/" in name or "\\" in name or name.startswith(".") or not f.is_file():
         raise HTTPException(404)
     return FileResponse(f, filename=name)
+
+
+@app.put("/api/releases/{name}")
+async def release_upload(request: Request, name: str):
+    auth = request.headers.get("authorization", "")
+    if not RELEASE_TOKEN or not hmac.compare_digest(auth, f"Bearer {RELEASE_TOKEN}"):
+        raise HTTPException(401)
+    if name not in RELEASE_FILES:
+        raise HTTPException(404)
+    DIST_DIR.mkdir(parents=True, exist_ok=True)
+    part = DIST_DIR / f".{name}.part"
+    size = 0
+    with part.open("wb") as f:
+        async for chunk in request.stream():
+            size += len(chunk)
+            if size > 200 * 1024 * 1024:
+                part.unlink()
+                raise HTTPException(413)
+            f.write(chunk)
+    part.replace(DIST_DIR / name)  # atomic: installers never download a half-written zip
+    return {"ok": True, "name": name, "bytes": size}
 
 
 @app.get("/v/{agent_id}", response_class=HTMLResponse)
