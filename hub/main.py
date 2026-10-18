@@ -253,7 +253,8 @@ def home(request: Request):
     agents = [agent_view(a) for a in q("SELECT * FROM agents WHERE user_id=? ORDER BY name, hostname", u["id"])]
     if not agents:
         return RedirectResponse("/add")
-    return templates.TemplateResponse(request, "home.html", {"user": u, "agents": agents, "nav": agents})
+    return templates.TemplateResponse(request, "home.html", {"user": u, "agents": agents, "nav": agents,
+                                                              "latest": latest_version()})
 
 
 def nav(u):
@@ -281,6 +282,22 @@ def add_page(request: Request, code: str = ""):
 def install_script():
     s = INSTALL_SH.read_text(encoding="utf-8")
     return s.replace("https://ytcuan.autopreneur.id", HUB_URL).replace("ghcr.io/midev-id/yt-cuan-agent:latest", AGENT_IMAGE)
+
+
+_latest = {"mtime": None, "v": None}
+
+
+def latest_version():
+    """Version inside the newest published Windows zip; CI publishes it on every v* tag."""
+    import zipfile
+    f = DIST_DIR / "yt-cuan-agent-win64.zip"
+    if not f.exists():
+        return None
+    m = f.stat().st_mtime
+    if _latest["mtime"] != m:
+        with zipfile.ZipFile(f) as z:
+            _latest.update(mtime=m, v=z.read("VERSION").decode().strip())
+    return _latest["v"]
 
 
 @app.get("/install.ps1", response_class=PlainTextResponse)
@@ -337,6 +354,7 @@ async def vps_page(request: Request, agent_id: int, c: int | None = None):
         "broadcasts": [b for b in st.get("broadcasts", []) if ch and b["channel_id"] == ch["id"]],
         "media": [m for m in st.get("media", []) if ch and m["channel_id"] == ch["id"]],
         "titles_n": (st.get("titles") or {}).get(str(ch["id"]) if ch else "", 0),
+        "latest": latest_version(),
     })
 
 

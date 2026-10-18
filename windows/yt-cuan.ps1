@@ -112,6 +112,10 @@ switch ($Command) {
     $set = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 999 `
       -RestartInterval (New-TimeSpan -Minutes 1) -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
     Register-ScheduledTask -TaskName $Task -Action $act -Trigger $trg -Principal $pri -Settings $set -Force | Out-Null
+    # "Perbarui" from the hub: the agent runs this task; separate from the agent task so stopping the agent doesn't kill it
+    $uact = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$Home_\yt-cuan.ps1`" update"
+    $uset = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 30) -AllowStartIfOnBatteries
+    Register-ScheduledTask -TaskName "YT-CUAN Update" -Action $uact -Principal $pri -Settings $uset -Force | Out-Null
     Start-Agent
 
     # tray for every user at logon + desktop shortcut to the dashboard

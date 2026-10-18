@@ -309,3 +309,26 @@ def broadcast_end(p):
              _int(p, "broadcast_id"), what="Live")
     db.run("UPDATE broadcasts SET state='ending' WHERE id=? AND state='live'", b["id"])  # forced: skips Filter View
     return {"msg": "Live sedang diakhiri.", "channel_id": b["channel_id"]}
+
+
+# ---------- self-update (PRD §13.9 H4) ----------
+UPDATE_FLAG = "update-requested"  # Linux: host systemd path unit (installed by install.sh) watches this file
+UPDATER_MARK = ".host-updater"
+
+
+@action("agent.update")
+def agent_update(p):
+    """Hand the update to the host; this process is replaced, so it can't do the work itself."""
+    import os
+    import subprocess
+    if os.name == "nt":
+        r = subprocess.run(["schtasks", "/run", "/tn", "YT-CUAN Update"], capture_output=True, text=True,
+                           creationflags=0x08000000)
+        if r.returncode:
+            raise ActionError("Updater Windows tidak ditemukan. Jalankan installer sekali lagi di server ini.")
+    else:
+        if not (config.DATA_DIR / UPDATER_MARK).exists():
+            raise ActionError("Updater belum terpasang di server ini. Jalankan installer sekali lagi (aman, data tidak hilang).")
+        (config.DATA_DIR / UPDATE_FLAG).write_text(str(time.time()))
+    db.event("info", f"Pembaruan dimulai dari versi {config.VERSION}")
+    return {"msg": "Pembaruan dimulai. Server tersambung lagi dalam 1–3 menit; live putus sebentar lalu jalan lagi."}

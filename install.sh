@@ -65,6 +65,27 @@ fi
 
 docker compose up -d
 
+# "Perbarui" from the hub: the agent (inside Docker) drops data/update-requested, the host runs the update.
+cat > /etc/systemd/system/yt-cuan-update.path <<'EOF'
+[Unit]
+Description=YT-CUAN: update requested by the hub
+[Path]
+PathExists=/opt/yt-cuan/data/update-requested
+[Install]
+WantedBy=multi-user.target
+EOF
+cat > /etc/systemd/system/yt-cuan-update.service <<'EOF'
+[Unit]
+Description=YT-CUAN: update agent
+[Service]
+Type=oneshot
+ExecStartPre=/bin/rm -f /opt/yt-cuan/data/update-requested
+ExecStart=/usr/local/bin/yt-cuan update
+EOF
+systemctl daemon-reload
+systemctl enable --now yt-cuan-update.path >/dev/null
+touch data/.host-updater
+
 cat > /usr/local/bin/yt-cuan <<'EOF'
 #!/usr/bin/env bash
 # Perintah harian YT-CUAN agent.

@@ -212,7 +212,13 @@
   <form method="post" action="/v/{{ v.id }}/rename" class="row">
     <input name="name" value="{{ v.name }}" aria-label="Nama server" maxlength="60"><button>Ganti nama</button>
   </form>
-  <p class="mute">Hostname {{ v.hostname or '-' }}.</p>
+  <p class="mute">Hostname {{ v.hostname or '-' }} · versi agent <b>{{ v.version or '-' }}</b>{% if latest %} · terbaru <b>{{ latest }}</b>{% endif %}</p>
+  <form method="post" action="/v/{{ v.id }}/do/agent.update" style="margin-bottom:14px"
+        onsubmit="return confirm('Perbarui agent sekarang? Server restart sekitar 1 menit; live putus sebentar lalu jalan lagi otomatis.')">
+    <input type="hidden" name="_back" value="{{ here }}">
+    <button class="{{ 'primary' if latest and v.version != latest }}" {% if off %}disabled{% endif %}>
+      {{ 'Perbarui ke ' ~ latest if latest and v.version != latest else 'Perbarui agent' }}</button>
+  </form>
   <form method="post" action="/v/{{ v.id }}/remove" onsubmit="return confirm('Lepas server ini dari hub? Live di server tetap jalan, tapi tidak bisa dikontrol dari sini sampai dipasangkan lagi.')">
     <button class="danger">Lepas dari hub</button>
   </form>
