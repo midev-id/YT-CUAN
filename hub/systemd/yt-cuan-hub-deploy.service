@@ -1,0 +1,9 @@
+[Unit]
+Description=YT-CUAN hub: deploy new commits from main
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/yt-cuan-hub/repo/hub/deploy.sh
+TimeoutStartSec=15min
