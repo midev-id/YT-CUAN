@@ -7,7 +7,7 @@
   {% if live_n %}<span class="onair">On air · {{ live_n }} live</span>{% else %}<span class="offair">Tidak ada live</span>{% endif %}
 </div>
 {% if st.current and st.current != 'live' %}
-<div class="panel" style="border-color:var(--pine)">
+<div class="panel" style="border-color:var(--acc)">
   <h2>Belum siap live</h2>
   <ul class="checks" style="list-style:none;padding:0;margin:0 0 8px">
     <li>{{ '✓' if st.done['stream'] else '○' }} Stream key {% if not st.done['stream'] %}<a href="/setup?c={{ ch.id }}#keys">buat dulu</a>{% endif %}</li>

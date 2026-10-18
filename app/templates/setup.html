@@ -7,14 +7,14 @@
   .step { position:relative; padding:0 0 22px 56px; }
   .step::before { content:""; position:absolute; left:17px; top:36px; bottom:-2px; width:2px; background:var(--line); }
   .step:last-child::before { display:none; }
-  .step.done::before { background:var(--pine); }
+  .step.done::before { background:var(--acc); }
   .node { position:absolute; left:0; top:0; width:36px; height:36px; border-radius:50%; display:grid; place-items:center;
     font-weight:700; background:#fff; border:2px solid var(--line); color:var(--mute); font-variant-numeric:tabular-nums; }
-  .done .node { background:var(--pine); border-color:var(--pine); color:#fff; }
-  .now .node { border-color:var(--pine); color:var(--pine); box-shadow:0 0 0 5px var(--pine-soft); }
+  .done .node { background:var(--acc); border-color:var(--acc); color:#fff; }
+  .now .node { border-color:var(--acc); color:var(--acc); box-shadow:0 0 0 5px var(--acc-soft); }
   .live-step.done .node { background:var(--air); border-color:var(--air); }
   .step > details { background:var(--panel); border:1px solid var(--line); border-radius:var(--r-lg); }
-  .now > details { border-color:var(--pine); }
+  .now > details { border-color:var(--acc); }
   .step summary { list-style:none; padding:14px 18px; display:flex; gap:12px; align-items:baseline; justify-content:space-between; flex-wrap:wrap; }
   .step summary::-webkit-details-marker { display:none; }
   .step summary h2 { font-size:17px; margin:0; }

@@ -4,7 +4,7 @@
 <style>
   .chips { display:flex; flex-wrap:wrap; gap:6px; margin:-4px 0 18px; }
   .chips a { padding:5px 12px; border:1px solid var(--line); border-radius:99px; text-decoration:none; color:var(--ink); background:#fff; }
-  .chips a[aria-current] { background:var(--pine); border-color:var(--pine); color:#fff; }
+  .chips a[aria-current] { background:var(--acc); border-color:var(--acc); color:#fff; }
   .checks { list-style:none; padding:0; margin:0 0 10px; display:grid; gap:4px; }
   fieldset { border:0; padding:0; margin:0; min-width:0; }
   fieldset[disabled] { opacity:.6; }
@@ -41,7 +41,7 @@
 
 {# ---------- setup: Google access + channel ---------- #}
 {% if not st.oauth.ready or not channels %}
-<section class="panel" style="border-color:var(--pine)">
+<section class="panel" style="border-color:var(--acc)">
   <h2>Siapkan server ini</h2>
   <fieldset {% if off %}disabled{% endif %}>
   <ul class="checks">
