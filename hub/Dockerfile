@@ -6,6 +6,7 @@ RUN pip install --no-cache-dir -r hub/requirements.txt
 COPY hub ./hub
 COPY app/static ./static
 COPY install.sh .
+COPY windows/install.ps1 windows/install.ps1
 ENV HUB_DATA_DIR=/data STATIC_DIR=/app/static INSTALL_SH=/app/install.sh PYTHONUNBUFFERED=1
 EXPOSE 9000
 HEALTHCHECK --interval=30s --timeout=5s CMD python -c "import urllib.request;urllib.request.urlopen('http://127.0.0.1:9000/healthz')"
