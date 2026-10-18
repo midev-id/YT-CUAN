@@ -8,3 +8,4 @@ hub-data/
 hub/.env.local
 hub/.env
 hub/data/
+build/

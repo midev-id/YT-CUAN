@@ -19,7 +19,7 @@ from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from google.auth.transport import requests as g_requests
@@ -35,6 +35,8 @@ FIREBASE = {"apiKey": os.environ.get("FIREBASE_API_KEY", ""), "authDomain": os.e
 DEV_LOGIN = os.environ.get("HUB_DEV_LOGIN", "")  # email; local testing only, refused unless HUB_URL is localhost
 AGENT_IMAGE = os.environ.get("AGENT_IMAGE", "ghcr.io/midev-id/yt-cuan-agent:latest")
 INSTALL_SH = Path(os.environ.get("INSTALL_SH", HERE.parent / "install.sh"))
+INSTALL_PS1 = Path(os.environ.get("INSTALL_PS1", HERE.parent / "windows" / "install.ps1"))
+DIST_DIR = DATA_DIR / "dist"  # release files served at /download/<name> (Windows agent zip)
 STATIC_DIR = Path(os.environ.get("STATIC_DIR", HERE.parent / "app" / "static"))
 RPC_TIMEOUT = 90  # channel.sync / oauth.token call YouTube from the agent
 OFFLINE_AFTER = 45
@@ -268,13 +270,28 @@ def add_page(request: Request, code: str = ""):
         return RedirectResponse(f"/add?code={code}")
     return templates.TemplateResponse(request, "add.html", {
         "user": u, "nav": nav(u), "code": code, "minutes": int((row["expires"] - time.time()) / 60),
-        "cmd": f"curl -fsSL {HUB_URL}/install | sudo bash -s -- {code}"})
+        "cmd": f"curl -fsSL {HUB_URL}/install | sudo bash -s -- {code}",
+        "cmd_win": f"irm {HUB_URL}/install.ps1 | iex; Install-YtCuan {code}",
+        "win_ready": (DIST_DIR / "yt-cuan-agent-win64.zip").exists()})
 
 
 @app.get("/install", response_class=PlainTextResponse)
 def install_script():
     s = INSTALL_SH.read_text(encoding="utf-8")
     return s.replace("https://ytcuan.autopreneur.id", HUB_URL).replace("ghcr.io/midev-id/yt-cuan-agent:latest", AGENT_IMAGE)
+
+
+@app.get("/install.ps1", response_class=PlainTextResponse)
+def install_ps1():
+    return INSTALL_PS1.read_text(encoding="utf-8").replace("https://ytcuan.autopreneur.id", HUB_URL)
+
+
+@app.get("/download/{name}")
+def download(name: str):
+    f = DIST_DIR / name
+    if "/" in name or "\\" in name or name.startswith(".") or not f.is_file():
+        raise HTTPException(404)
+    return FileResponse(f, filename=name)
 
 
 @app.get("/v/{agent_id}", response_class=HTMLResponse)

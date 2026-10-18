@@ -310,4 +310,8 @@ async def broadcast_end(bid: int):
 
 @app.get("/healthz")
 def healthz():
-    return {"ok": True, "hub": hub.status}
+    # counts only (no names/keys): read by the Windows tray without the dashboard password
+    return {"ok": True, "hub": hub.status, "version": config.VERSION,
+            "live": db.one("SELECT COUNT(*) n FROM broadcasts WHERE state='live'")["n"],
+            "keys_running": db.one("SELECT COUNT(*) n FROM stream_keys WHERE state IN ('running','degraded')")["n"],
+            "keys_error": db.one("SELECT COUNT(*) n FROM stream_keys WHERE state='error'")["n"]}

@@ -31,6 +31,28 @@ Image agent dibangun otomatis oleh GitHub Actions (`.github/workflows/image.yml`
 `ghcr.io/<owner>/yt-cuan-agent` setiap push ke `main`. Package itu harus diset **Public** di GitHub
 (Package settings → Change visibility) supaya VPS bisa menarik tanpa login; repo kode tetap privat.
 
+## Pasang di VPS Windows
+
+Windows Server 2019+ / Windows 10+ 64-bit, tanpa Docker. Masuk lewat Remote Desktop, buka PowerShell sebagai
+Administrator, lalu tempel perintah dari halaman **Tambah server** di hub:
+
+```powershell
+irm https://ytcuan.autopreneur.id/install.ps1 | iex; Install-YtCuan <KODE>
+```
+
+Semua ada di `C:\YT-CUAN` (`.env`, `data\`, `ffmpeg\`, `logs\`). Agent jalan sebagai scheduled task
+**YT-CUAN Agent** (akun SYSTEM, mulai saat boot, restart sendiri kalau crash). Ikon di pojok taskbar
+menunjukkan status (merah = ada live, hijau = jalan, kuning = perlu dicek, abu = agent mati) dan berisi
+menu buka dashboard, lihat password, mulai ulang, dan perbarui. Dashboard lokal: shortcut
+**YT-CUAN Dashboard** di desktop (`http://localhost:8000`). Installer juga mengatur jam aktif Windows Update
+05.00–23.00 supaya restart otomatis tidak terjadi siang hari.
+
+Perintah: `yt-cuan status | restart | update | pair <KODE> | password | uninstall`.
+
+Rilis: tag `v*` → GitHub Actions (`windows.yml`) membangun `yt-cuan-agent-win64.zip` dan melampirkannya ke
+GitHub Release. Karena repo privat, file itu disalin ke hub (`hub/data/dist/`) supaya installer bisa
+mengunduh dari `https://ytcuan.autopreneur.id/download/yt-cuan-agent-win64.zip`.
+
 ## Siapkan Google Cloud (sekali)
 
 1. Buka https://console.cloud.google.com, buat project baru.

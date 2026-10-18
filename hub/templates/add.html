@@ -6,14 +6,33 @@
 <p class="lead">Satu server untuk satu akun Google. Siapkan VPS Linux (Ubuntu 22.04 atau lebih baru) dan akses root.</p>
 
 <section class="panel" style="max-width:760px">
-  <ol class="how" style="padding-left:20px;margin:0">
+  <h2>VPS Linux</h2>
+  <ol style="padding-left:20px;margin:0">
     <li>Login ke VPS lewat SSH sebagai root.</li>
     <li>Tempel perintah ini, lalu tekan Enter:
       <pre id="cmd" style="margin:10px 0">{{ cmd }}</pre>
       <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('cmd').textContent).then(()=>this.textContent='Tersalin')">Salin perintah</button>
     </li>
-    <li style="margin-top:12px">Tunggu 2–5 menit. Halaman ini pindah sendiri begitu server tersambung.</li>
   </ol>
+</section>
+
+<section class="panel" style="max-width:760px">
+  <h2>VPS Windows</h2>
+  {% if win_ready %}
+  <ol style="padding-left:20px;margin:0">
+    <li>Masuk ke VPS lewat Remote Desktop.</li>
+    <li>Klik kanan Start → <b>Terminal (Admin)</b> atau <b>Windows PowerShell (Admin)</b>.</li>
+    <li>Tempel perintah ini, lalu tekan Enter:
+      <pre id="cmdw" style="margin:10px 0">{{ cmd_win }}</pre>
+      <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('cmdw').textContent).then(()=>this.textContent='Tersalin')">Salin perintah</button>
+    </li>
+  </ol>
+  <p class="mute">Setelah selesai, ikon YT-CUAN muncul di pojok taskbar dan shortcut <b>YT-CUAN Dashboard</b> di desktop.</p>
+  {% else %}<p class="mute">Paket Windows belum diunggah ke hub.</p>{% endif %}
+</section>
+
+<section class="panel" style="max-width:760px">
+  <p style="margin-top:0">Tunggu 2–5 menit setelah perintah dijalankan. Halaman ini pindah sendiri begitu server tersambung.</p>
   <p class="mute" style="margin-top:16px">Kode <code>{{ code }}</code> berlaku {{ minutes }} menit lagi dan hanya bisa dipakai sekali.
     Server yang sudah terpasang tanpa kode bisa disambungkan dengan <code>yt-cuan pair {{ code }}</code>.</p>
 </section>

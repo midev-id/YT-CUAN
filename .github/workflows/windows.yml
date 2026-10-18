@@ -1,0 +1,43 @@
+name: windows agent
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build
+        shell: pwsh
+        run: |
+          $v = if ($env:GITHUB_REF_TYPE -eq "tag") { $env:GITHUB_REF_NAME } else { "main-$($env:GITHUB_SHA.Substring(0,7))" }
+          ./windows/build.ps1 -Version $v
+      - name: Smoke test
+        shell: pwsh
+        run: |
+          $h = "$env:RUNNER_TEMP\yc"; New-Item -ItemType Directory $h | Out-Null
+          "SECRET_KEY=$('a' * 43)=`nADMIN_PASSWORD=x" | Set-Content "$h\.env"
+          $env:YTCUAN_HOME = $h
+          $p = Start-Process build\dist\yt-cuan-agent\yt-cuan-agent.exe -ArgumentList serve -PassThru
+          foreach ($i in 1..30) { try { Invoke-RestMethod http://127.0.0.1:8000/healthz; $ok = $true; break } catch { Start-Sleep 2 } }
+          $p | Stop-Process -Force
+          if (-not $ok) { Get-Content "$h\logs\agent.log" -Tail 50; exit 1 }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: yt-cuan-agent-win64
+          path: build/yt-cuan-agent-win64.zip
+      - name: Release
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create $env:GITHUB_REF_NAME build/yt-cuan-agent-win64.zip --generate-notes

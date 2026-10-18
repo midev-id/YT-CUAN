@@ -45,6 +45,22 @@ def build_cmd(key_plain: str, vlist: Path, alist: Path) -> list[str]:
             config.RTMP_BASE + key_plain]
 
 
+def kill_orphans():
+    """ffmpeg left over from a previous run (Windows doesn't kill children with the parent) would double-stream.
+
+    Ours are recognised by our data dir in their command line (concat lists, media paths).
+    """
+    import psutil
+    mine = str(config.DATA_DIR)
+    for p in psutil.process_iter(["name", "cmdline"]):
+        try:
+            if "ffmpeg" in (p.info["name"] or "").lower() and mine in " ".join(p.info["cmdline"] or []):
+                p.kill()
+                db.event("warn", f"ffmpeg sisa run sebelumnya dihentikan (pid {p.pid})")
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+
+
 class Supervisor:
     def __init__(self):
         self.tasks: dict[int, asyncio.Task] = {}
@@ -74,6 +90,7 @@ class Supervisor:
         db.run("UPDATE stream_keys SET state='stopped', speed=NULL WHERE id=?", key_id)
 
     async def restore(self):
+        kill_orphans()
         for row in db.q("SELECT id FROM stream_keys WHERE desired='running'"):
             self.start(row["id"])
 
