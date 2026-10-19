@@ -13,7 +13,7 @@ $HubUrl = "https://ytcuan.autopreneur.id"
 $Home_ = "C:\YT-CUAN"
 $Exe = "$Home_\app\yt-cuan-agent.exe"
 $Task = "YT-CUAN Agent"
-$FfmpegZip = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.1-latest-win64-gpl-7.1.zip"
+$FfmpegZip = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
 
 function Say($m) { Write-Host "`n$m" -ForegroundColor Cyan }
 function Die($m) { Write-Host "`nGagal: $m" -ForegroundColor Red; if ($Pause) { Read-Host "Tekan Enter untuk menutup" }; exit 1 }
@@ -74,7 +74,7 @@ switch ($Command) {
     New-Item -ItemType Directory -Force "$Home_\data", "$Home_\logs", "$Home_\ffmpeg" | Out-Null
 
     if (-not (Test-Path "$Home_\ffmpeg\ffmpeg.exe")) {
-      Say "Mengunduh ffmpeg (±100 MB)…"
+      Say "Mengunduh ffmpeg (~100 MB)..."
       $z = Join-Path $env:TEMP "ffmpeg.zip"
       Invoke-WebRequest $FfmpegZip -OutFile $z -UseBasicParsing
       $x = Join-Path $env:TEMP "ffmpeg-x"; Remove-Item $x -Recurse -Force -ErrorAction SilentlyContinue
@@ -84,11 +84,11 @@ switch ($Command) {
     }
 
     Stop-Agent
-    if (-not $Source) { Say "Mengunduh YT-CUAN…"; $Source = Get-Release }
+    if (-not $Source) { Say "Mengunduh YT-CUAN..."; $Source = Get-Release }
     Copy-Release $Source
 
     if (-not (Test-Path "$Home_\.env")) {
-      Say "Membuat konfigurasi…"
+      Say "Membuat konfigurasi..."
       $b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b)
       $key = [Convert]::ToBase64String($b).Replace('+', '-').Replace('/', '_')
       @(
@@ -100,12 +100,12 @@ switch ($Command) {
     Set-Acls
 
     if ($Code) {
-      Say "Memasangkan ke hub…"
+      Say "Memasangkan ke hub..."
       & $Exe pair $Code | Out-Host
       if ($LASTEXITCODE -ne 0) { Die "kode pairing salah atau kedaluwarsa. Buat kode baru di hub, lalu: yt-cuan pair <KODE>" }
     }
 
-    Say "Mendaftarkan service…"
+    Say "Mendaftarkan service..."
     $act = New-ScheduledTaskAction -Execute $Exe -Argument "serve" -WorkingDirectory $Home_
     $trg = New-ScheduledTaskTrigger -AtStartup
     $pri = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
@@ -133,7 +133,7 @@ switch ($Command) {
     $path = [Environment]::GetEnvironmentVariable("Path", "Machine")
     if ($path -notlike "*$Home_*") { [Environment]::SetEnvironmentVariable("Path", "$path;$Home_", "Machine") }
 
-    Say "Menunggu aplikasi siap…"
+    Say "Menunggu aplikasi siap..."
     if (-not (Wait-Healthy)) { Die "agent tidak menyala. Cek log: $Home_\logs\agent.log" }
     Start-Tray
     $pw = (Get-Content "$Home_\.env" | Where-Object { $_ -like "ADMIN_PASSWORD=*" }) -replace "ADMIN_PASSWORD=", ""
@@ -144,14 +144,14 @@ switch ($Command) {
   }
   "update" {
     Need-Admin
-    Say "Mengunduh versi terbaru…"
+    Say "Mengunduh versi terbaru..."
     $src = Get-Release
     if ((Get-Content "$src\VERSION") -eq (Get-Content "$Home_\VERSION" -ErrorAction SilentlyContinue)) { Write-Host "Sudah versi terbaru."; break }
     Stop-Agent
     Copy-Release $src
     Start-Agent
     if (-not (Wait-Healthy)) {
-      Say "Versi baru tidak menyala, kembali ke versi sebelumnya…"
+      Say "Versi baru tidak menyala, kembali ke versi sebelumnya..."
       Stop-Agent; Remove-Item "$Home_\app" -Recurse -Force; Rename-Item "$Home_\app.old" "app"; Start-Agent
       Die "pembaruan dibatalkan. Cek log: $Home_\logs\agent.log"
     }
@@ -162,7 +162,7 @@ switch ($Command) {
   "status" {
     $h = Health
     if (-not $h) { Write-Host "Agent tidak jalan." -ForegroundColor Red } else {
-      Write-Host "Versi $($h.version) · $($h.live) live · $($h.keys_running) key jalan · $($h.keys_error) key error"
+      Write-Host "Versi $($h.version) | $($h.live) live | $($h.keys_running) key jalan | $($h.keys_error) key error"
       Write-Host ("Hub: " + $(if ($h.hub.connected) { "tersambung" } else { $h.hub.error }))
     }
   }
