@@ -10,5 +10,7 @@ function Install-YtCuan([string]$Code = "") {
   Write-Host "`nMengunduh YT-CUAN..." -ForegroundColor Cyan
   Invoke-WebRequest "$hub/download/yt-cuan-agent-win64.zip?t=$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())" -OutFile "$tmp\r.zip" -UseBasicParsing
   Expand-Archive "$tmp\r.zip" $tmp
-  & powershell -NoProfile -ExecutionPolicy Bypass -File "$tmp\yt-cuan.ps1" install -Code $Code -Source $tmp
+  $a = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "$tmp\yt-cuan.ps1", "install", "-Source", $tmp)
+  if ($Code) { $a += "-Code", $Code }   # powershell -File drops an empty "", leaving -Code without a value
+  & powershell @a
 }
